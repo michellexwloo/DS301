@@ -1,0 +1,142 @@
+---
+title: "HW2"
+author: "Xuan Wen Loo"
+date: "2024-01-26"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+```
+
+## Problem 1
+
+(a) When we change the units of the predictor from $X_j$ to $Z_j = cX_j$, the coefficient of $Z_j$ in the new model will be $\hat{\alpha}_j = \hat{\beta}_j / c$. This implies that the coefficient for the transformed predictor, $Z_j$, will be the original coefficient, $\hat{\beta}_j$ divided by the constant c. If we change the units of a predictor by the factor of c, the corresponding coefficient in the new model will change by the reciprocal of that factor.
+
+(b) Standardizing predictors to the same scale is not strictly necessary for linear regression models. While it can help in equalizing the influence of predictors and improving numerical stability, it may obscure the original meaning of variables and mask non-linear effects. Hence, the decision to standardize predictors should consider factors such as interpretability and the presence of non-linear relationships in the dataset.
+
+(c) 
+i. The relationship between Y and X = ($X_1, X_2,...,X_p$) is approximately linear. This means that the relationship between the predictors and the response can be adequately represented by a straight line.
+
+ii. $E(\epsilon)$=0. This means that the residuals are normally distributed, indicating that the model is capturing all the information in the data. There isn't any other factors influencing the relationship between the predictors and response.
+
+iii. $Var(\epsilon)$ = $\sigma^2$. This means that the spread of the residuals is consistent across the range of predictors, ensuring that the model's predictions are qually reliable across different levels of the predictors.
+
+iv. $\epsilon$’s are uncorrelated. This means each observation is independent, the value of one observation should not be influenced by the value of other observations. This ensures each data point provides unique information to the model.
+
+(d) That is incorrect. It is missing an $\epsilon$ that represents inherent variability. There will always be noises and randomness that is not measurable, so we need to add the $\epsilon$ indicating that Y is not exact. 
+
+(e) False. Although it is likely for the training MSE to be smaller than test MSE, it is still possible that the test MSE is smaller. This may be caused by there are too many noises in the training data set, while the test set is somewhat clean.
+
+(f) In plain language, ‘unbiased’ means that if we were able to take many samples and obtain the $\hat{\beta}$ for each sample, then the average of the $\hat{\beta}$s would equals to the true parameter B. 
+
+## Problem 2
+
+```{r}
+library(ISLR2)
+head(Boston)
+```
+
+(a)
+```{r}
+# (a)
+set.seed(1)
+n = nrow(Boston)
+train_index = sample(1:n,n/2,rep=FALSE)
+
+train_bos = Boston[train_index,]
+test_bos = Boston[-train_index,]
+
+model_train = lm(crim~., data = train_bos)
+MSE_train = mean((train_bos$crim - model_train$fitted.values)^2) 
+
+predicted_values = predict(model_train,test_bos)
+MSE_test = mean((test_bos$crim - predicted_values)^2)
+
+cat("\nTraining MSE:", MSE_train)
+cat("\nTest MSE:", MSE_test)
+```
+
+```{r}
+# (b)
+model_train_b = lm(crim~zn+indus+nox+dis+rad+ptratio+medv, data = train_bos)
+MSE_train_b = mean((train_bos$crim - model_train_b$fitted.values)^2) 
+
+predicted_b = predict(model_train_b,test_bos)
+MSE_test_b = mean((test_bos$crim - predicted_b)^2)
+
+cat("\nTraining MSE:", MSE_train_b)
+cat("\nTest MSE:", MSE_test_b)
+```
+
+(b) The training MSE from the model of (b) is larger that the one obtained in (a). But the test MSE in (b) is smaller, causing the difference between training and test MSE in this model to be greater.
+
+(c) I expect that the model in (b) have a smaller training MSE than (a). However, the training MSE in (b) is actually larger than (a). This may because there are more predictors being included in (a), where more variation in the data is being captured, leading to a better fit.
+
+(d) I expect that the model in (b) have a smaller test MSE than (a), and it turns out to be true. This suggests that the subset of predictors used in (b) captures more relevant information for predicting more efficiently than using all predictors in (a), leading to a better performance on the test set.
+
+## Problem 3
+
+(a) $\beta_0$ = 2, $\beta_1$ = 3, $\beta_2$ = 5
+
+(b)
+```{r}
+# (b)
+X1 = seq(0,10,length.out =100)
+X2 = runif(100)
+error = rnorm(100,0,1)
+Y = 2 + 3 * X1 + 5 * log(X2) + error
+```
+
+```{r}
+# (c)
+par(mfrow = c(1,2))
+plot(X1, Y, xlab = "X1", ylab = "Y", main = "X1 vs Y")
+plot(X2, Y, xlab = "X2", ylab = "Y", main = "X2 vs Y")
+```
+
+(c) In the scatterplot of X1 vs Y, we can observe that the points seem to follow a linear pattern, which suggests a linear relationship between X1 and Y. The plot of X2 vs Y does not have a linear pattern, but possibly logarithm as the points seem to curve upwards.
+
+```{r}
+# (d)
+num_simulations = 1000
+beta_1_est = rep(NA, num_simulations)
+for (i in 1:num_simulations) {
+  error = rnorm(100,0,1)
+  Y = 2 + 3 * X1 + 5 * log(X2) + error
+  model = lm(Y~X1 + log(X2))
+  beta_1_est[i] = model$coefficients[[2]]
+}
+beta_1_bias = mean(beta_1_est) - 3
+beta_1_bias
+```
+
+(d) The difference between $\hat{\beta}_1$ and $\beta_1$ is near to 0, showing that $\hat{\beta}_1$ is an unbiased estimator of $\beta_1$.
+
+```{r}
+# (e)
+hist(beta_1_est)
+abline(v = 3, col = "red")
+```
+
+```{r}
+# (f)
+num_simulations = 1000
+beta_2_est = rep(NA, num_simulations)
+for (i in 1:num_simulations) {
+  error = rnorm(100,0,1)
+  Y = 2 + 3 * X1 + 5 * log(X2) + error
+  model = lm(Y~X1 + log(X2))
+  beta_2_est[i] = model$coefficients[[3]]
+}
+beta_2_bias = mean(beta_2_est) - 5
+beta_2_bias
+```
+
+```{r}
+# (g)
+hist(beta_2_est)
+abline(v = 5, col = "red")
+```
+

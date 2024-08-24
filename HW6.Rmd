@@ -1,0 +1,175 @@
+---
+title: "HW6"
+author: "Xuan Wen Loo"
+date: "2024-03-01"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(leaps)
+```
+
+## Problem 1
+
+(a) It is not a must for the statement to be true. As the number of predictors increases, $M_{k+1}$ may find a better predictors combination that gives a smaller RSS value, and hence does not include the predictor in $M_k$.
+
+(b) Yes. Everytime k increments by 1, it takes the existing model and adds one more predictor that will give the smallest RSS. So the future models will always contain a subset of predictors from the previous models.
+
+(c) When k=1, all three methods will give the same result since they involve selecting one predictor only. However, as k increases, the models produced by forward and backward selections will most likely have smaller training MSE as compared to the model produced by subset selection. This is because forward and backward selection algorithms are designed to iteratively add or remove predictors based on their contribution to reducing the training error. On the other hand, subset selection evaluates all possible combinations of predictors which can lead to overfitting and got a higher training error.
+
+(d) The model produced by forward selection is expected to have the smallest test MSE. This is because forward selection builds the model by iteratively adding predictors that improve the model's performance, which often results in a better generalization to unseen data.
+
+## Problem 2
+```{r}
+p = 20
+n = 1000
+error = rnorm(n,0,1)
+beta = c(2, rep(0,5),1.2,3,-2,1.5,7,rep(0,5),3,4,1,9,2)
+Xmat = matrix(rnorm(n*20),n,20)
+X = cbind(rep(1,n),Xmat)
+Y = X%*%beta + error
+data = data.frame(Y,Xmat)
+
+# (a)
+train_index = sample(1:nrow(data), 100)
+train_data = data[train_index,]
+test_data = data[-train_index,]
+
+#(b)
+subset_model = regsubsets(Y~., data = train_data, nbest = 1, nvmax = 20)
+plot(summary(subset_model)$cp, xlab = "Number of predictors", ylab = "Training MSE", type = "l")
+
+#(c)
+test_MSE = rep(NA,19)
+for(i in 1:19){
+  test.mat = model.matrix(Y~.,data=test_data)
+  
+  coef.m = coef(subset_model,id=i)
+  pred = test.mat[,names(coef.m)]%*%coef.m 
+  test_MSE[i] = mean((test_data$Y-pred)^2)
+}
+plot(test_MSE, xlab = "Number of predictors", ylab = "Test MSE", type = "l")
+
+# (d)
+min_model = which.min(test_MSE)
+min_model
+
+#(e)
+coef_subset = coef(subset_model, id = min_model)
+true_coef = c(beta[1], beta[-1])
+
+plot(coef_subset, type = "l", col = "blue", xlab = "Number of Predictors", ylab = "Coefficients", main = "Comparison of Coefficients")
+lines(true_coef, col = "red")
+legend("topright", legend = c("Estimated", "True"), col = c("blue", "red"), lty = 1)
+
+```
+
+(e) The estimated regression coefficients are quite similar to the true values when the number of predictors is 1, 2 and above 6.
+
+## Problem 3
+```{r}
+library(ISLR2)
+
+#(a)
+train_index = sample(1:nrow(College), 0.9*nrow(College))
+train_data = College[train_index, ]
+test_data = College[-train_index, ]
+
+regfit.fwd = regsubsets(Apps~.,data=train_data,nvmax=17, nbest = 1, method="forward")
+regfit.bwd = regsubsets(Apps~.,data=train_data,nvmax=17, method="backward")
+
+test_MSE_fwd = rep(NA, 17)
+for(i in 1:17){
+  test.mat = model.matrix(Apps~.,data=test_data)
+  coef.m = coef(regfit.fwd,id=i)
+  pred = test.mat[,names(coef.m)]%*%coef.m
+  test_MSE_fwd[i] = mean((test_data$Apps-pred)^2)
+}
+test_MSE_fwd
+cat("Model that minimizes test MSE: ", which.min(test_MSE_fwd), "\n\n")
+
+test_MSE_bwd = rep(NA, 17)
+for(i in 1:17){
+  test.mat = model.matrix(Apps~.,data=test_data)
+  coef.m = coef(regfit.bwd,id=i)
+  pred = test.mat[,names(coef.m)]%*%coef.m
+  test_MSE_bwd[i] = mean((test_data$Apps-pred)^2)
+}
+test_MSE_bwd
+cat("Model that minimizes test MSE: ", which.min(test_MSE_bwd), "\n")
+```
+
+(a) It is not necessary that forward and backward algorithms will lead to the same model based on test MSE, but in this case they gives the same model.
+
+```{r}
+#(b)
+full.regfit.fwd = regsubsets(Apps~.,data=College,nvmax=17, nbest = 1, method="forward")
+full.regfit.bwd = regsubsets(Apps~.,data=College,nvmax=17, method="backward")
+
+n = dim(College)[1]
+
+full.regfit.fwd.sum = summary(full.regfit.fwd)
+p.fwd = rowSums(full.regfit.fwd.sum$which)
+rss.fwd = full.regfit.fwd.sum$rss
+AIC.fwd = n*log(rss.fwd/n) + 2*(p.fwd)
+which.min(AIC.fwd)
+
+full.regfit.bwd.sum = summary(full.regfit.bwd)
+p.bwd = rowSums(full.regfit.bwd.sum$which)
+rss.bwd = full.regfit.bwd.sum$rss
+AIC.bwd = n*log(rss.bwd/n) + 2*(p.bwd)
+which.min(AIC.bwd)
+```
+(b) Both forward and backward selection gives the same model based on AIC.
+
+(c) Choosing the final model can be depended on several considerations such as the model complexity and by using some domain knowledge on the problem or dataset. Since AIC provides a more comprehensive approach to model selection that accounts for both how well the model fits the data and the model complexity by penalizing the model, choosing the best model based on AIC might be a better option.
+
+## Problem 4
+
+The standard error values for the coefficients of the predictors, X1 and X2, are considered large as compared to their estimates. A possible explanation for this result is multicollinearity. It happens when the predictors in the regression model are highly correlated with each other, which will leads to issues in estimating the individual effects of each predictors on the response. When multicollinearity is present, it will be challenging for the model to distinguish the unique contribution of each predictor as they are redundant in explaining the variation in the response variable. Additionally, standard errors are supposed to provide an indication of the uncertainty associated with the coefficient estimates. Hence, the coefficient estimates of the correlated variables become unstable, leading to inflated standard errors and will potentially mislead the interpretations of their effects.
+
+## Problem 5
+
+```{r}
+#(a)
+str(Credit)
+```
+
+(a) Own, Student, Married, and Region are stored as factors in R.
+
+```{r}
+#(b)
+Credit$Student <- relevel(Credit$Student, ref = "No")
+
+fit = lm(Balance ~ Income + Student, data = Credit)
+summary(fit)
+```
+
+(c) Students: Balance = 211.1430 + 5.9843(Income) + 382.6705(StudentYes)    
+Non-students: Balance = 211.1430 + 5.9843(Income) 
+
+(d) For both models, the coefficient of Income indicates that for each unit increase in Income, the average balance increases by approximately 5.9843, holding other predictors constant.
+
+```{r}
+#(e)
+predicted_student = predict(fit, newdata = data.frame(Income = Credit$Income, Student = "Yes"))
+predicted_nonstudent = predict(fit, newdata = data.frame(Income = Credit$Income, Student = "No"))
+
+plot(Credit$Income, predicted_student, type = "l", col = "blue", xlab = "Income", ylab = "Predicted Balance")
+lines(Credit$Income, predicted_nonstudent, col = "red")
+legend("topright", legend = c("Student", "Non-Student"), col = c("blue", "red"), lty = 1)
+
+```
+
+(e) The plot suggests that there is no interaction effect between Income and Student status. The effect of Income on average Balance does not differ between students and non-students.
+
+```{r}
+#(f)
+lm(Balance ~ Income + Student + Income:Student, data=Credit)
+```
+
+(f) Students: Balance = 200.623 + 6.218(Income) + 476.676(StudentYes) -1.999(Income $\times$ StudentYes)   
+Non-students: Balance = 200.623 + 6.218(Income) 
+
+(g) The coefficient of Income:StudentYes, -1.999, represents the additional effect of Income on Balance for students in comparison to non-students. The combined effect of Income on balance for students is 6.218 - 1.999 = 4.219. This suggests that for each unit increase in Income, the average Balance increases by 4.219 for students, holding all other predictors constant. For non-students, since there's no interaction term for non-students, the effect of Income on Balance remains constant regardless of student status. For each unit increase in Income, the average Balance increases by 6.218, holding other predictors constant.

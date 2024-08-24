@@ -1,0 +1,131 @@
+---
+title: "HW8"
+author: "Xuan Wen Loo"
+date: "2024-03-24"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Problem 1
+
+(a) Lasso can set some of the regression coefficients to be 0 exactly because it performs both model selection and regularization. Lasso regression includes a penalty term that is the absolute sum of the coefficients, L1 regularization. When the penalty term is applied during optimization, it can shrink some coefficients all the way to 0 because the penalty has corners at the axes, leading to sparsity in the model. Meaning it tends to eliminate some coefficients entirely. On the other hand,ridge regression includes a penalty term that is the squared sum of the coefficients, L2 regularization. This penalty term smooths the coefficient values but doesn't force them to be 0 exactly. It will always return the full model with all predictors, so the coefficient could not be 0.
+
+(b) a. Training MSE will ii. decrease initially, and then eventually start increasing in a U shape. As $\lambda$ increases, the penalty term becomes more influential in optimization, which helps in reduce overfitting, resulting in decreased training MSE. However, as $\lambda$ continues to increase, the penalty term starts to dominate, leading to underfitting and consequently, an increase in training MSE.     
+b. Test MSE will iii. steadily increase. Test MSE typically increases as $\lambda$ increases because the model becomes overly constrained with larger penalty terms, leading to high bias and low variance, which gives a poor generalization performance.    
+c. Variance will iv. steadily decrease. As $\lambda$ increases, the model becomes simpler, leading to more stable and less variable predictions across different dataset, hence variance will decrease.    
+d. Bias will iii. steadily increase. As $\lambda$ increases, the penalty term starts to dominate the optimization process, causing coefficients to shrink excessively, leading to underfitting and increased bias.   
+e. Irreducible error will v. remain constant. The irreducible error represents the inherent noise in the data that cannot be reduced by an model. Any regularization techniques only affect the reducible error components, leaving the irreducible error unaffected and hence it remains constant.
+
+## Problem 2
+
+```{r}
+library(ISLR2)
+library(glmnet)
+# (a)
+set.seed(12)
+n = nrow(College)
+train_index = sample(1:n,n/2,rep=FALSE)
+train = College[train_index,]
+test = College[-train_index,]
+
+# (b)
+ridge.train = glmnet(as.matrix(train[,-1]),train$Apps,alpha=0)
+
+# (c)
+cv_ridge = cv.glmnet(as.matrix(train[, -1]), train$Apps, alpha = 0, nfolds = 5)
+optimal_lambda = cv_ridge$lambda.min
+cat("Optimal lambda for ridge regression: ", optimal_lambda, "\n")
+
+# (d)
+l2_norm = sqrt(sum(coef(ridge.train, s = optimal_lambda)[-1]^2))
+cat("L2 norm for ridge regression: ", l2_norm, "\n")
+
+# (e)
+ridge_pred = predict(ridge.train, newx = as.matrix(test[, -1]), s = optimal_lambda)
+ridge_test_mse = mean((ridge_pred - test$Apps)^2)
+cat("Test MSE for ridge regression:", ridge_test_mse, "\n")
+
+# (f)
+cv_lasso = cv.glmnet(as.matrix(train[, -1]), train$Apps, alpha = 1, nfolds = 5)
+optimal_lambda_lasso = cv_lasso$lambda.min
+cat("Optimal lambda for lasso regression: ", optimal_lambda_lasso, "\n")
+
+# (g)
+coef_norm_lasso = sum(abs(coef(ridge.train, s = optimal_lambda_lasso)[-1]))
+cat("L1 norm for lasso regression: ", coef_norm_lasso, "\n")
+
+# (h)
+lasso_model = glmnet(as.matrix(train[, -1]), train$Apps, alpha = 1)
+lasso_pred = predict(lasso_model, newx = as.matrix(test[, -1]), s = optimal_lambda_lasso)
+lasso_test_mse = mean((lasso_pred - test$Apps)^2)
+cat("Test MSE for lasso regression:", lasso_test_mse, "\n")
+```
+
+(b) Scaling the predictors to have a standard deviation of 1 is necessary because regularization techniques like ridge regression penalize the coefficients of the predictors based on their magnitudes. If the predictors are on different scales, those with larger scales might dominate the penalty term, leading to biased coefficient estimates.
+
+(i) There is a significant difference in the test errors resulting from the two approaches. The test MSE for lasso regression is substantially lower than the test MSE of ridge regression. This indicates that the lasso regression model is performing better in terms of prediction accuracy on the test set as compared to the ridge regression model. The difference in the norms also suggests that lasso regression tends to produce more sparse models, with more coefficients being 0 exactly.
+
+## Problem 3
+
+```{r}
+library(ISLR2)
+library(glmnet)
+# (a)
+Hitters = na.omit(Hitters)
+n = nrow(Hitters) #there are 263 observations
+x = model.matrix(Salary ~.,data=Hitters)[,-1] #19 predictors
+Y = Hitters$Salary
+set.seed(1)
+train = sample(1:nrow(x), nrow(x)/2)
+test=(-train)
+Y.test = Y[test]
+
+# (b), (c)
+cv.ridge = cv.glmnet(x[train,], Y[train], alpha = 0, nfolds = 10)
+plot(cv.ridge)
+lambda_ridge_min = cv.ridge$lambda.min
+lambda_ridge_1se = cv.ridge$lambda.1se
+
+# (d), (e)
+cv.lasso = cv.glmnet(x[train,], Y[train], alpha = 1, nfolds = 10)
+plot(cv.lasso)
+lambda_lasso_min = cv.lasso$lambda.min
+lambda_lasso_1se = cv.lasso$lambda.1se
+
+# (f)
+# Ridge regression models on test set
+ridge_min_pred = predict(cv.ridge, s = lambda_ridge_min, newx = x[test,])
+ridge_1se_pred = predict(cv.ridge, s = lambda_ridge_1se, newx = x[test,])
+
+ridge_min_mse = mean((ridge_min_pred - Y.test)^2)
+ridge_1se_mse = mean((ridge_1se_pred - Y.test)^2)
+
+# Lasso regression models on test set
+lasso_min_pred = predict(cv.lasso, s = lambda_lasso_min, newx = x[test,])
+lasso_1se_pred = predict(cv.lasso, s = lambda_lasso_1se, newx = x[test,])
+
+lasso_min_mse = mean((lasso_min_pred - Y.test)^2)
+lasso_1se_mse = mean((lasso_1se_pred - Y.test)^2)
+
+# Report test MSEs
+cat("Ridge Regression Test MSE (lambda_min):", ridge_min_mse, "\n")
+cat("Ridge Regression Test MSE (lambda_1se):", ridge_1se_mse, "\n")
+cat("Lasso Regression Test MSE (lambda_min):", lasso_min_mse, "\n")
+cat("Lasso Regression Test MSE (lambda_1se):", lasso_1se_mse, "\n")
+
+# (g)
+coef(cv.ridge, s = lambda_ridge_min)
+coef(cv.ridge, s = lambda_ridge_1se)
+
+coef(cv.lasso, s = lambda_lasso_min)
+coef(cv.lasso, s = lambda_lasso_1se)
+```
+
+(g) The coefficient estimates from ridge and lasso regression vary based on the $\lambda$ values chosen. In general, lasso tends to produce more sparse solutions by shrinking some coefficients to 0 exactly, effectively performing variable selection. On the other hand, ridge regression shrinks the coefficients towards 0 but not 0 exactly. So, it'll always return the full model with all predictors. Comparing the coefficient estimates between $\lambda_{min}$ and $\lambda_{1se}$, I observe that $\lambda_{1se}$ tends to produce more penalized estimates, which can lead to simpler models.
+
+(h) The ridge regression model, using $\lambda_{min}$, performs the best in terms of prediction as it has the lowest test MSE. In this case, the predictors might be highly correlated, so ridge regression tends to perform better as it's nature of penalty can help mitigate the effects of multicollinearity by distributing the coefficient values among correlated predictors more evenly.
+
+(i) Based on the coefficient estimates, features such as "HmRun", Walks", "CHmRun", "CRBI" seem to have significant coefficients across both ridge and lasso regression models. Therefore, a recommendation to an upcoming baseball player would be focus on improving those key features.

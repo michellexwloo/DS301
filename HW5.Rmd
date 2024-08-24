@@ -1,0 +1,143 @@
+---
+title: "HW5"
+author: "Xuan Wen Loo"
+date: "2024-02-21"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Problem 1
+
+```{r}
+library(leaps)
+prostate = read.table("./prostate.data",header=TRUE)
+head(prostate)
+```
+
+```{r}
+regfit = regsubsets(lpsa~.,data=prostate,nbest=1,nvmax=9)
+regfit.sum = summary(regfit)
+regfit.sum
+
+n = dim(prostate)[1]
+p = rowSums(regfit.sum$which)
+adjr2 = regfit.sum$adjr2
+cp = regfit.sum$cp
+rss = regfit.sum$rss
+AIC = n*log(rss/n) + 2*(p)
+BIC = n*log(rss/n) + (p)*log(n)
+
+cat("Smallest AIC: ", which.min(AIC), "\n")
+cat("Smallest BIC: ", which.min(BIC), "\n")
+cat("Largest adjusted R^2: ", which.max(adjr2), "\n")
+cat("Smallest Mallow's Cp: ", which.min(cp), "\n")
+```
+
+(a) Different criteria lead to different results, except AIC and Mallow's Cp in this case give the same model. Model 5 may be chosen for this approach as it has relatively small values AIC and Mallow's Cp values.
+
+```{r}
+# (b)
+train = subset(prostate,train==TRUE)[,1:9]
+test = subset(prostate,train==FALSE)[,1:9]
+
+library(leaps)
+best.train = regsubsets(lpsa~.,data=train,nbest=1,nvmax=9)
+val.errors = rep(NA,9)
+for(i in 1:8){
+  test.mat = model.matrix(lpsa~.,data=test)
+  
+  coef.m = coef(best.train,id=i)
+  
+  pred = test.mat[,names(coef.m)]%*%coef.m
+  val.errors[i] = mean((test$lpsa-pred)^2)
+}
+
+best_model_size = which.min(val.errors)
+cat("Best model size: ", best_model_size, "\n")
+
+full.reg = regsubsets(lpsa ~ ., data=prostate, nvmax=best_model_size)
+full.reg
+coef(full.reg, best_model_size) 
+```
+
+```{r}
+# (c)
+# (i)
+library(caret)
+k = 10
+flds = createFolds(prostate$lpsa, k = 10, list = TRUE, returnTrain = FALSE)
+
+val.errors = matrix(NA, nrow = 9, ncol = k)
+
+for (f in 1:k) {
+  test_index = flds[[f]]
+  
+  test = prostate[test_index,]
+  train = prostate[-test_index,]
+  best.train = regsubsets(lpsa~.,data=train,nbest=1,nvmax=9)
+  
+  for(i in 1:9){
+    test.mat = model.matrix(lpsa~.,data=test)
+    
+    coef.m = coef(best.train,id=i)
+    
+    pred = test.mat[,names(coef.m)]%*%coef.m
+    val.errors[i, f] = mean((test$lpsa-pred)^2)
+  }
+}
+
+mean_cv_errors = apply(val.errors, 1, mean)
+mean_cv_errors
+
+# (ii)
+optimal_model_size = which.min(mean_cv_errors)
+
+full.reg = regsubsets(lpsa~., data = prostate, nvmax = optimal_model_size, nbest = 1)
+full.reg
+coef(full.reg, optimal_model_size) 
+
+```
+
+## Problem 2
+
+(a) False. Models of same sizes will give the same result regardless of the criteria because they totally just depend on the RSS.
+
+(b) False. It is not necessarily true that a more complex model fits the data better because the RSS of a model depends on various factors.
+
+(c) False. Although M4 contains the two predictors in M2 with another 2 additional predictors, it's possible that M4 captures more variation in the data, potentially resulting in a smaller RSS. However, it is not theoretically true that this will always be the case as M4 might be affected by more noises.
+
+(d) Unlike test MSE that solely measures how well a model predicts the data, AIC and BIC penalize models for their complexities. This provide a balance between model complexity and how well it fits the data by penalizing models for their complexity which helps to guard against overfitting. AIC and BIC help to prevent the selection of models that may perform well on the training data but works poorly on unseen data.
+
+
+## Problem 3
+
+(a) The relationship between response Y and predictors X is approximately linear.    
+$E(\epsilon) = 0$, on average, the random errors are centered at 0.   
+$Var(\epsilon) = \sigma^2$, there is a constant variance.   
+$\epsilon's$ are uncorrelated, each observation is independent.
+
+(b) False. Least squares estimation is commonly used to obtain parameter estimates. It focuses on minimizing the sum of squares differences between observed and predicted values. Simply fitting a linear regression model does not mandate the distributional assumptions.
+
+(c) True. One of the assumptions that have to be made for multiple linear regression is that the random errors need to be normally distributed. This assumption is crucial for the validity of the calculated p-values, otherwise the p-values obtained may not be reliable for inference.
+
+(d) The plot does not account for potential relationships between the response and combinations of the predictors. Non-linearity might appear in these joint relationships that are not apparent when examining individual predictor and response pairs. It may not capture interactions between predictors while the relationship between Y and $X_j$ will vary depending on the value of another predictor.
+
+```{r}
+library(ISLR2)
+m1 = lm(mpg~horsepower,data=Auto)
+summary(m1)
+par(mfrow=c(2,2))
+plot(m1)
+```
+
+```{r}
+# (e)
+m2 = lm(mpg ~ horsepower + I(horsepower^2), data = Auto)
+par(mfrow=c(2,2))
+plot(m2)
+```
+
+(e) The model I created added another the squared of horsepower, creating a quadratic relationship between mpg and horsepower. The plots for the quadratic model, m2, have no obvious pattern and the red lines are flatter as compared to m1. This suggests that m2 provides a better fit than m1. It better accommodates the non-linearity in the relationship between mpg and horsepower, indicating an improvement over m1.

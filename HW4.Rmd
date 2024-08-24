@@ -1,0 +1,159 @@
+---
+title: "HW4"
+author: "Xuan Wen Loo"
+date: "2024-02-10"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Problem 1
+
+(a) Hypothesis testing is valuable because it can be used to quantify uncertainty. Just because the estimated coefficient is not 0 doesn't necessarily mean that it is significantly different from 0. There may be false positive or false negative that will lead us to make an incorrect conclusion about the relationships between the predictors and the response. Data scientists rely on hypothesis test to ensure the validity of their findings especially when there are multiple predictors.
+
+(b) I disagree with the claim that we could obtain perfect prediction if we know the true f(X). Achieving perfect prediction is not guaranteed due to the inherent variability. This factor is completely random which means even if we have the true f(X), our predictions will still have some uncertainty.
+
+(c) False. The statement is incorrect because expected test MSE should be the difference between the true outcome and predicted outcome, where both $y_0$ and $\hat{f}_0$ are from the test set, not from the training set.
+
+(d) True. Reducing the complexity of our model such as removing a predictor, may help mitigate overfitting, thereby reducing variance, which could lead to a better performance on unseen data despite potentially introducing some bias.
+
+(e) False. Irreducible error represents the inherent randomness in the relationship between predictors and response, which cannot be reduced by any model. Thus, the expected test MSE, which includes both reducible and irreducible error, cannot be smaller than the irreducible error.
+
+(f) True. The training MSE is computed using the same data the model was trained on. It measures how well the model fits the training data. Since the model is specifically optimized to minimize the training MSE, it may be possible for the training MSE to be smaller than the irreducible error. 
+
+## Problem 2
+(a) ![Sketch of typical curves](/Users/xuanwen/Downloads/Q2(a)_sketch.jpeg)
+
+(b) **expected test MSE**: The average squared difference between the predicted values and the true values of the outcome for new data. It quantifies the overall prediction error of a model on data it has not seen before.   
+**training MSE**: The average squared difference between the predicted values and the true values of the outcome for the data used to train the model. It measures how well the model fits the data it was trained on.
+**bias**: The error introduced by the simplifying assumptions made by a model. It represents how much the average prediction of the model differs from the true value.    
+**variance**: It represents how much the predictions for a given point vary across different samples of the data.    
+**irreducible error**: The inherent randomness in the relationship between predictors and the outcome variable that cannot be reduced by any model.
+
+(c) Bias decreases because more flexible model can better capture complex pattern in the data, reducing the discrepancy between the model's prediction and the true value.    
+Variance increases because more flexible model tends to fit the training data more closely, leading to greater variability in predictions across different samples of the data.   
+Expected test MSE initially decreases due to decreasing bias, but then increases because of the increasing variance. When it reaches a minimum point, there the tradeoff between bias and variance is balanced.   
+Training MSE initially decreases sharply as the model become more flexible and can fit the training data better, but then starts to flatten out as the model overfits.   
+Irreducible error remains constant as it represents the inherent randomness in the data, which is not affected by the flexibility of the model.
+
+(d) In this scenario, the training MSE for the cubic regression might be lower than of the linear regression. This is because the cubic regression model is more flexible and is able to fit the training data more closely.
+
+(e) There is not enough information to tell which test MSE will be lower. While the cubic regression may have a lower training MSE due to its flexibility, there may be a chance of overfitting the training data, leading to a poorer performance on unseen data. Thus, it may have a higher test MSE than the linear regression model, especially if the relationship between X and Y is linear. However, this assumption may or may not happen so it is difficult to determine without further information.
+
+## Problem 3
+
+```{r}
+library(MASS)
+library(caret)
+
+degrees = 1:9
+
+CV = numeric(length(degrees))
+
+for (d in degrees) {
+  fold_errors = numeric(5)
+  folds = createFolds(Boston$medv, k = 5)
+  
+  for (i in 1:5) {
+    test_index = folds[[i]]
+    test = Boston[test_index,]
+    train = Boston[-test_index,]
+    
+    model = lm(medv~poly(lstat, degree = d), data = train)
+    prediction = predict(model, newdata = test[,-14])
+    
+    fold_errors[i] = mean((test$medv - prediction)^2)
+  }
+  CV[d] = mean(fold_errors)
+}
+
+CV
+cat("Optimal degree: ", which.min(CV))
+plot(degrees, CV, type = 'b')
+```
+
+
+## Problem 4
+
+(a) In k-fold cross-validation, the dataset will be randomly partitioned into k equal size folds. The model is then trained k times, each time using k-1 folds as training set and the remaining folds as the validation set. This process is repeated for all folds and the mean squared error is averaged all k iterations to obtain an overall estimate of the model's performance.
+
+(b) i. K-fold cross validation uses the entire dataset for both training and test, leading to a more efficient use of data compared to the validation set approach, where a portion of the data is set aside for test, potentially resulting in wasted data. However, k-fold can be computationally expensive, especially with large values of k, as it involves training and testing the model multiple times.   
+ii. The advantage of k-fold is the balance between computational efficiency and bias in the estimated error, reducing the cost compared to LOOCV, particularly when the data set is large and the computational cost of LOOCV will be very expensive. However, the level of bias in k-fold can be higher compared to LOOCV, particularly for small k values, as k-fold relies on random partitioning of the data into folds.
+
+```{r}
+# (c)
+set.seed(1)
+x = rnorm(100)
+error = rnorm(100, 0, 1)
+y = x - 2*x^2 + error
+```
+
+```{r}
+# (d)
+set.seed(2)
+data_d = data.frame(x = x, y = y)
+models_d = list(
+  M1 = lm(y ~ x, data = data_d),
+  M2 = lm(y ~ poly(x, 2), data = data_d),
+  M3 = lm(y ~ poly(x, 3), data = data_d),
+  M4 = lm(y ~ poly(x, 4), data = data_d)
+)
+
+LOOCV_errors_d = numeric(length(models_d))
+
+for (i in 1:length(models_d)) {
+  prediction_errors_d = numeric(nrow(data_d))
+  for (j in 1:nrow(data_d)) {
+    train_d = data_d[-j,]
+    validation_d = data_d[j,]
+    
+    prediction_d = predict(models_d[[i]], newdata = validation_d)
+    
+    prediction_errors_d[j] = (validation_d$y - prediction_d)^2
+  }
+  LOOCV_errors_d[i] = mean(prediction_errors_d)
+}
+
+LOOCV_errors_d
+```
+
+```{r}
+# (e)
+set.seed(123)
+data_e = data.frame(x = x, y = y)
+models_e = list(
+  M1 = lm(y ~ x, data = data_e),
+  M2 = lm(y ~ poly(x, 2), data = data_e),
+  M3 = lm(y ~ poly(x, 3), data = data_e),
+  M4 = lm(y ~ poly(x, 4), data = data_e)
+)
+
+LOOCV_errors_e = numeric(length(models_e))
+
+for (i in 1:length(models_e)) {
+  prediction_errors_e = numeric(nrow(data_e))
+  for (j in 1:nrow(data_e)) {
+    train_e = data_e[-j,]
+    validation_e = data_e[j,]
+    
+    prediction_e = predict(models_e[[i]], newdata = validation_e)
+    
+    prediction_errors_e[j] = (validation_e$y - prediction_e)^2
+  }
+  LOOCV_errors_e[i] = mean(prediction_errors_e)
+}
+
+LOOCV_errors_e
+```
+
+(e) The results for both random seed are the same. In LOOCV, each observation is left out exactly once and the procedure is repeated for every single observation. This results in a consistent evaluation of the model's performance across different random seeds.
+
+(f) M4 has the smallest LOOCV error. This result is unexpected because usually higher degree polynomial tend to have a higher variance and can overfit the data. In contrast, simpler model will have lower LOOCV error due to its reduced complexity and potential for better generalization to unseen data. However, this result may be affected by random noises introduced during data generation.
+
+(g) In LOOCV, each model is trained on all data points, leaving out only one observation at a time for test. Thus, the error estimates are not overly optimistic or pessimistic due to using large fraction of the available data for training.
+
+(h) As k increases, the bias of the test error generally stays the same. This is because with larger k values, each training set becomes more representative of the entire data set, leading to similar bias in the estimated error across folds.
+
+(i) As k increases, the variance of the test error generally decreases. With larger k values, the variability in the estimated error across folds decreases becayse each fold contains a larger fraction of the dataset, leading to more stable estimated of the model performance.

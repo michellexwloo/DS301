@@ -1,0 +1,184 @@
+---
+title: "HW3"
+author: "Xuan Wen Loo"
+date: "2024-01-31"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Problem 1
+
+```{r}
+library(ISLR2)
+head(Carseats)
+?Carseats
+```
+
+```{r}
+# (a)
+model = lm(Sales~.-ShelveLoc, data = Carseats)
+summary(model)
+```
+
+(a) In this problem, I chose to use the 'Income' variable.    
+H0: Beta_income = 0   
+H1: Beta_income $\neq$ 0    
+Test statistics: 3.738    
+Null distribution: 390    
+P-value: 0.000213   
+Conclusion: Comparing the p-value of income to significance value of $\alpha$ = 0.05, 0.000213 < 0.05. There is sufficient evidence to reject H0.
+
+(b) To carry out the hypothesis test, we need to assume that the errors are normally distributed.
+
+(c) $\sigma^2$ = 1.932. In plain language, this value represents the standard deviation of the residuals, which are the differences between the values of the response variable and the values predicted by the model.
+
+```{r}
+# (d)
+coef(model)["Advertising"]
+```
+
+(d) In this model, the estimated coefficient for Advertising is 0.1398, indicating that on average, for every additional unit spent on advertising, unit sale is expected to increase by approximately 0.1369 thousand units, while holding other variables constant.
+
+```{r}
+# (e)
+cat("Full model RSS: ", sum(residuals(model)^2), "\n")
+cat("Reduced model RSS: ", sum((Carseats$Sales - mean(Carseats$Sales))^2), "\n")
+```
+
+```{r}
+# (f) 
+summary(model)
+```
+
+(f) H0: $\beta_1 = \beta_2 = ... = \beta_p = 0$     
+H1: At least one $\beta \neq 0$  
+F-test statistics: 51.38  
+Null distribution: 390    
+p-value: < 2.2e-16   
+Conclusion: p-value is smaller than $\alpha=0.05$, there is sufficient evidence to reject H0. Hence, there is at least one predictor that has significant difference.
+
+```{r}
+# (g)
+avg_price = mean(Carseats$CompPrice)
+fx = model$coefficients[[1]] + model$coefficients[[2]] * avg_price + model$coefficients[[3]] * median(Carseats$Income) + model$coefficients[[4]] * 15 + model$coefficients[[5]] * 500 + model$coefficients[[6]] * 50 + model$coefficients[[7]] * 30 + model$coefficients[[8]] * 10 + model$coefficients[[9]] * 1 + model$coefficients[[10]] * 1
+
+std_error = sqrt(sum(residuals(model)^2)/model$df.residual)
+
+lower_bound = fx - 1.96 * std_error
+upper_bound = fx + 1.96 * std_error
+
+cat("f(X) = ", fx, "\n")
+cat("Let confidence level be 95%, confidence interval: (",lower_bound,", ", upper_bound, ")")
+```
+
+```{r}
+# (h)
+error = rnorm(1,0,1)
+Y = fx + error
+Y_lower_bound = Y - 1.96 * std_error
+Y_upper_bound = Y + 1.96 * std_error
+
+cat("Y = ", Y, "\n")
+cat("Let confidence level be 95%, confidence interval: (",Y_lower_bound,", ", Y_upper_bound, ")")
+```
+
+(i) f(X) = $\hat{Y}$ = $\hat{\beta}_0 + \hat{\beta}_1X_1 + ... +\hat{\beta}_pX_p$
+$E(Y|X) = E(\beta_0 + \beta_1X_1 + ... +\beta_pX_p) + E(\epsilon)$.  
+Since $\beta's$ are constants and the $\epsilon$ is the error term with mean zero, this implies that $E(Y|X) = \beta_0 + \beta_1X_1 + ... +\beta_pX_p$.  
+Comparing this with f(X), it can be seen that $E(X|Y) = f(X) = \hat{Y}$.  
+Therefore, in the context of multiple linear regression, f(X) = E(Y) for fixed values of X.
+
+```{r}
+# (j)
+Y2 = model$coefficients[[1]] + model$coefficients[[2]] * avg_price + model$coefficients[[3]] * median(Carseats$Income) + model$coefficients[[4]] * 15 + model$coefficients[[5]] * 500 + model$coefficients[[6]] * 450 + model$coefficients[[7]] * 30 + model$coefficients[[8]] * 10 + model$coefficients[[9]] * 1 + model$coefficients[[10]] * 1 + error
+Y2
+```
+
+(j) The predicted value of Y does not make sense, as it is impossible for sales to be a negative value. This reveals a limitation of the model where it may not perform well when extrapolating beyond the range of observed data.
+
+```{r}
+# (k)
+residuals = residuals(model)
+sum(residuals^2) / (length(residuals) - length(coef(model)))
+```
+
+(k) The estimate $\hat{\sigma}^2$ is 3.733413. A lower value suggests that the model's prediction is somehow close to the actual values, indicating that the prediction from the model is potentially less bias.
+
+
+## Problem 2
+
+(a) There will be $m \times \alpha = 0.05m$ false positive just by chance.
+
+```{r}
+# (b)
+y = rnorm(1000) 
+p = c(200,400,500,600,800)
+false_values = rep(NA, 5)
+
+for(i in 1:5){
+  x = matrix(NA,1000,p[i])
+  for(j in 1:p[i]){
+    x[,j] = rnorm(1000)
+  }
+  data = as.data.frame(cbind(y,x))
+  fit = lm(y~.,data=data)
+  p_values = summary(fit)$coefficients[,4]  
+  false_values[i] = length(which(p_values<0.05))
+}
+
+plot(p, false_values, type = "b", xlab = "Number of Tests", ylab = "Number of False Positives", main = "Number of False Positives by Tests")
+```
+
+(b) The number of false positive is more likely to increase as the number of tests increase. But there is a chance that higher number of tests has a lower number of false positives since it's totally random.
+
+## Problem 3
+
+(a) $\beta_0$ = 2  
+$\beta_1$ = 3  
+$\beta_2$ = 5
+
+```{r}
+# (b)
+X1 = seq(0,10,length.out =100)
+X2 = runif(100) 
+ei = rnorm(100, 0, 2)
+Yi = 2 + 3*X1 + 5*X2 + ei
+```
+
+```{r}
+# (c)
+n_simulations = 1000
+sigma_squared_hat = rep(NA, n_simulations)
+for (i in 1:n_simulations) {
+  Y_sim = 2 + 3 * X1 + 5 * X2 + rnorm(100, 0, 2)
+  fit = lm(Y_sim ~ X1 + X2)
+  sigma_squared_hat[i] <- sum(fit$residuals^2) / (length(Y_sim) - length(coef(fit)))
+}
+
+mean_sigma_squared_hat = mean(sigma_squared_hat)
+true_sigma_squared = 2^2
+mean_sigma_squared_hat - true_sigma_squared
+
+```
+
+(c) The difference between $\hat{\sigma}^2$ and $\sigma^2$ is close enough to 0 to show that it is an unbiased estimator.
+
+```{r}
+# (d)
+hist(sigma_squared_hat)
+abline(v = true_sigma_squared, col = "red", lwd = 2)
+```
+
+(e) An estimate of $\sigma^2$ represents the variability of the observed responses around the true regression line. If we do not have a good estimate of $\sigma^2$, it may affects various pipelines such as inference and prediction. Incorrect estimates of $\sigma^2$ can lead to incorrect conclusions about the significance of predictors and the overall model. Moreover, accurate prediction intervals and confidence intervals for predictions also rely on a correct estimate of $\sigma^2$.
+
+## Problem 4
+
+(a) In plain language, setting the significance level to be $\alpha = 0.05$ means that we will accept a 5% chance of making a type 1 error. A type 1 error occurs when we incorrectly reject the null hypothesis, as it is not really possible that we can create an absolutely perfect model. So if we set $\alpha = 0.05$, it implies that it will be acceptable for a 5% chance of incorrectly concluding that there is an effect when actually there isn't one.
+
+(b) I would disagree with the claim of not including the predictor $X_j$. While the p-value of $\beta_j$ is greater than $\alpha$, it does not necessarily mean that the associate predictor is not meaningful. A p-value slightly above 0.05 does not provide strong evidence against the null hypothesis. It simply means that the observed data is not sufficiently inconsistent with the null hypothesis to conclude significance at 0.05 level. Moreover, p-value is not the only factor to define a predictor. Therefore, it is not appropriate to dismiss the predictor based solely on it's p-value being slightly above 0.05.
+
+(c) That is a bad idea because it will increase the likelihood of making type 1 errors due to multiple comparisons. There's a higher chance of finding a significant result just by random chance even if there is no true effect. This then leads to mistakenly concluding that a predictor is important when it's actually not.  
+If $\alpha = 0.1$, the probability of not seeing a significant result in a single test is 1 - $\alpha$ = 0.9. Therefore, the probability of not seeing a significant result in all 12 tests is (0.9)^12 = 0.28. Consequently, the probability of seeing at least one significant result by chance is approximately 1 - 0.28 = 0.72. This means that there is a high chance, about 72%, that we will obtain false positive conclusions.

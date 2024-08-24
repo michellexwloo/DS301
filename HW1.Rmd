@@ -1,0 +1,259 @@
+---
+title: "DS 301 - Homework 1"
+author: "Xuan Wen Loo"
+date: "2024-01-19"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(broom)
+library(jtools)
+library(ggplot2)
+```
+
+## Problem 1: R review
+
+```{r}
+# read Auto.data
+Auto <- read.table("Auto.data", header = TRUE)
+# display rows and columns
+dim(Auto)
+```
+
+(a) There are 397 rows and 9 columns.
+
+```{r}
+# (b)
+Auto2 <- Auto[rowSums(Auto == "?", na.rm = TRUE) == 0, ]
+dim(Auto2)
+```
+
+(b) There are 392 rows and 9 columns after cleaning the dataset.
+
+```{r}
+# (c)
+str(Auto2)
+```
+
+(c) None of the columns are stored as factor. factor is a data type used to represent categorical variables, which are variables that can take on a limited, and usually fixed, number of possible values or categories. 
+
+(d) The variable name should not be encoded as a factor. Because they are just names of the cars, which should be unique and there is no meaningful hierarchy or order among them.
+
+```{r}
+# (e)
+head(Auto2, 10)
+```
+
+(e) 'head(Auto2, 10)' will show the function head() with parameter '10' determines that the first 10 observations will be shown.
+
+```{r}
+# (f)
+Auto2[c(10, 14, 29), ]
+```
+
+```{r}
+# (g)
+Auto2[c(10, 14, 29), c("displacement", "horsepower")]
+```
+
+```{r}
+# (h)
+mean(subset(Auto2, as.numeric(horsepower) < 200)$mpg)
+```
+
+(i) A scatter plot would be appropriate as it is useful for visualizing the relationship between two continuous variables.
+
+```{r}
+# (i)
+plot(Auto2$horsepower, Auto2$mpg, xlab = "horsepower", ylab = "mpg", main = "mpg vs horsepower")
+```
+
+(j) A bar plot can be used to observe the trend of acceleration over the years. In this case, I used the mean acceleration of each year to observe the change.
+
+```{r}
+# (j)
+barplot(tapply(Auto2$acceleration, Auto2$year, mean), xlab = "Year", ylab = "Mean Acceleration", main = "Mean Acceleration by Year")
+
+```
+
+(k) Functions are vectorized means that these functions are designed to work efficiently with entire sets of data at once, rather than needing to process one piece of data at a time. In a non-technical analogy, say that there's a paper with a list of numbers where each number need to be doubled. A non-vectorized approach will be going through the numbers one by one and double them individually. On the other hand, a vectorized approach will be using some magic power to instantly double all the numbers at the same time.
+
+## Problem 2
+
+```{r, message = FALSE}
+library(ISLR2)
+head(Boston)
+```
+
+```{r}
+# (a)
+dim(Boston)
+```
+
+(a) There are 506 rows and 13 columns
+
+```{r}
+# (b)
+?Boston
+```
+
+(b) 'lstat' represents the percentage of the population that is of lower status.
+
+```{r}
+# (c)
+mean(Boston$crim)
+```
+
+(c) The average per capita crime rate is 3.613524
+
+```{r}
+# (d)
+average_crime_away <- mean(Boston$crim[Boston$chas == 0])
+
+average_crime_near <- mean(Boston$crim[Boston$chas == 1])
+
+# Report the values
+cat("Average crime rate for suburbs away from the Charles river:", average_crime_away, "\n")
+cat("Average crime rate for suburbs near the Charles river:", average_crime_near, "\n")
+```
+
+(d) It will be safer to be near the Charles river as the average crime rate there is 1.85, which is lower than the average crime rate away from Charles river at 3.74. 
+
+```{r}
+# (e)
+summary(Boston$crim)
+
+# Define a threshold for 'high'
+threshold <- quantile(Boston$crim, 0.75) + 1.5 * IQR(Boston$crim)
+
+# Identify suburbs with high crime rates
+high_crime_suburbs <- Boston[Boston$crim > threshold, ]
+
+# Report findings
+cat("\nThreshold for 'high' crime rate:", threshold, "\n")
+print(high_crime_suburbs)
+```
+
+(e) The data 'high_crime_suburbs' lists the suburbs of Boston that appear to have particularly high crime rates. A "high" crime rate is defined based on a threshold that considers value significantly above the average or beyond a certain quantile. In this case, I used a threshold of 1.5 * the interquartile range above the 3rd quartile.
+
+```{r}
+# (f)
+correlation_crim <- cor(Boston)[, "crim"]
+sort(correlation_crim, decreasing = TRUE)
+```
+
+(f) Variables with positive values indicate that as 'crim' increases, the variable also increases. In contrast, negative values indicate that as 'crim' increases, the variable decreases. The magnitude of the correlation coefficient indicates the strength of the association, values closer to 1 or -1 have stronger association. 
+
+```{r}
+# (g)
+lstat_lrm <- lm(crim ~ lstat, data = Boston)
+summary(lstat_lrm)
+```
+(g) Yhat = -3.33 + 0.55*lstat
+
+The result suggests that there is a positive relationship between 'crim' and 'lstat'. The p-value is way below the 0.05 indicating that there is a statistically significant association between 'crim' and 'lstat'. In short, the model suggests a statistically significant positive relationship between 'lstat' and 'crim'.
+
+```{r}
+# (h)
+# Create an empty data frame to store results
+single_results <- data.frame(Predictor = character(), Estimate = numeric(), Std_Error = numeric(), P_Value = numeric(), stringsAsFactors = FALSE)
+
+# Loop through each predictor
+for (predictor in colnames(Boston)) {
+  if (predictor != "crim") {
+    # Fit a simple linear regression model
+    model <- lm(formula = paste("crim ~", predictor), data = Boston)
+    
+    # Extract information using broom package
+    tidy_result <- tidy(model)
+    
+    # Append results to the data frame
+    single_results <- rbind(single_results, data.frame(Predictor = predictor, Estimate = tidy_result$estimate[2], Std_Error = tidy_result$std.error[2], P_Value = tidy_result$p.value[2], stringsAsFactors = FALSE))
+  }
+}
+
+# Display the results
+print(single_results)
+```
+
+(h) Statistically significant associations usually use a significance level of 0.05. Hence, predictors with p-values less than 0.05 are considered to have statistically significant associations with the response variable. Based on the p-values shown in the table, all models have statistically significant association between the predictor and the response, except the model of 'chas' predictor model that has a p-value of 0.209.
+
+```{r, message=FALSE}
+attach(Boston)
+# 'chas' vs 'crim'
+plot(chas,crim,pch = 20, main = "Relationship between crim and chas")
+abline(lm(crim ~ chas, data = Boston),col = "blue",lwd = 3)
+legend("topleft", c( "Regression"), col = c("blue"), lty = c(1, 1))
+
+# 'zn' vs 'crim'
+plot(zn,crim,pch = 20, main = "Relationship between crim and zn")
+abline(lm(crim ~ zn, data = Boston),col = "green",lwd = 3)
+legend("topleft", c( "Regression"), col = c("green"), lty = c(1, 1))
+
+# 'lstat' vs 'crim'
+plot(lstat,crim,pch = 20, main = "Relationship between crim and lstat",
+     ylab = "per capita crime rate 'crim'", xlab = "lstat")
+abline(lm(crim ~ lstat, data = Boston),col = "green",lwd = 3)
+legend("topleft", c( "Regression"), col = c("green"), lty = c(1, 1))
+```
+
+Comparing the plot of response and predictor 'chas' with other predictors, we can observe that a change in 'chas' is not accompanied by an increase/decrease in 'crim', while the other predictors either increase or decrease accordingly. Therefore, we can conclude that there is no statistically significant association between 'chas' and 'crim', meaning there is no relationship between these two variables.
+
+```{r}
+# (i)
+# Fit multiple regression model using all predictors
+multiple_model <- lm(crim ~ ., data = Boston)
+
+# Summarize the results
+summ(multiple_model, digits=5)
+```
+
+(i) Yhat = 13.78 + 0.05\*zn - 0.06\*indus  - 0.83\*chas - 9.96\*nox + 0.63\*rm - 0.0009\*age - 1.01\*dis + 0.62\*rad - 0.004\*tax - 0.3\*ptratio + 0.14\*lstat - 0.22\*medv
+
+```{r}
+# (j)
+# Simple linear regression coefficients
+coefficients_slr <- single_results$Estimate
+
+# Multiple regression coefficients
+multi_coe <- summary(multiple_model)$coefficients
+coefficients_mlr <- multi_coe[, "Estimate"]
+
+# Get common predictors (exclude 'Intercept')
+common_predictors <- intersect(single_results$Predictor, rownames(multi_coe))
+
+# Create a data frame for comparison with common predictors
+comparison_df <- data.frame(
+  Predictor = common_predictors,
+  SLR_Coefficient = coefficients_slr[match(common_predictors, single_results$Predictor)],
+  MLR_Coefficient = coefficients_mlr[match(common_predictors, rownames(multi_coe))]
+)
+
+# Plot comparison
+ggplot(comparison_df, aes(x = SLR_Coefficient, y = MLR_Coefficient, label = Predictor)) +
+  geom_point() +
+  #geom_text(hjust = 1, vjust = 1) +
+  labs(
+    title = "Comparison of Simple Linear Regression Coefficients vs. Multiple Regression Coefficients",
+    x = "Simple Linear Regression Coefficients",
+    y = "Multiple Regression Coefficients"
+  )
+
+```
+
+(j) There is a distinct difference between simple and multiple regression coefficients. This is because the slope of the simple linear regression model represents the average effect of an increase in a single predictor ignoring the other predictors in the dataset. In contrast, multiple regression holds other predictors fixed and the slope represents the average effect of an increase in the predictor.
+
+(k) The plot in (j) helps visualize the difference between the coefficients of simple and of multiple regression model. A multiple linear regression model captures the joint effect of all predictors on the response variable, determining potential interactions and dependencies among predictors. In contrast, many simple linear regression models may overlook these interactions and dependencies, leading to biased and inconsistent estimates. The multiple regression model provides a more comprehensive view of how each predictor contributes to the response variable and the effects of other predictors.
+
+## Problem 3
+
+(a) Statement ii, For a fixed value of IQ and GPA, college graduates earn more, on average, than high school graduates, is correct.
+Since X3 is binary, 1 for college and 0 for high school, β3 = 35 represents the average difference in starting salary between college and high school graduates. This suggests that college graduates have a 35 more than high school graduates in the case that their IQ and GPA are the same. 
+
+(b) Yhat = 50 + 20\*4.0 + 0.07\*110 + 35*1 = 172.7
+
+The predicted salary of the college graduate is 172.7k.
+
+(c) False. The importance of the effect of a predictor cannot be solely determined by the magnitude of its coefficient. The importance also depends on other factors such as the scale of the predictor and the context of the problem. Even if the coefficient of IQ is small, its impact on salary can be significant, considering IQ is measured with larger numbers.

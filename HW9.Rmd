@@ -1,0 +1,188 @@
+---
+title: "HW9"
+author: "Xuan Wen Loo"
+date: "2024-04-03"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Problem 1
+
+```{r}
+library(ISLR2)
+# (a)
+muhat = mean(Boston$medv)
+muhat
+
+# (b)
+n = dim(Boston)[1]
+std_error = sd(Boston$medv) / sqrt(n)
+std_error
+
+# (c)
+B = 2000
+muhat_boot = rep(0,B)
+for(b in 1:B){
+  index = sample(1:n,n,replace=TRUE)
+  bootsample = Boston[index,]
+  muhat_boot[b] = mean(bootsample$medv)
+}
+sd(muhat_boot)
+```
+
+c. The estimated standard errors from analytical formula and from bootstrap are close, indicating that the bootstrap method provides a reliable estimate of the standard error.
+
+```{r}
+# (d)
+# CI from bootstrap
+boot_mean_ci = quantile(muhat_boot, c(0.025, 0.975))
+boot_mean_ci
+
+# CI from analytical formula
+t_value = qt(0.975, df = n - 1)
+margin_of_error = t_value * std_error
+conf_interval = c(muhat - margin_of_error, muhat + margin_of_error)
+conf_interval
+```
+
+d. The confidence intervals obtained from bootstrap and from analytical formula are almost the same. Both methods yield similar results, which adds to the validity of the estimation. 
+
+```{r}
+# (e)
+muhat_med = median(Boston$medv)
+muhat_med
+
+# (f)
+B = 2000
+muhat_med_boot = rep(0,B)
+for(b in 1:B){
+  index = sample(1:n,n,replace=TRUE)
+  bootsample = Boston[index,]
+  muhat_med_boot[b] = median(bootsample$medv)
+}
+se_muhat_med = sd(muhat_med_boot)
+se_muhat_med
+```
+
+f. The standard error can be considered small, indicating that the median estimate has relatively low variability, providing more confidence in its accuracy.
+
+```{r}
+# (g)
+muhat_0.1 = quantile(Boston$medv, 0.1)
+muhat_0.1
+
+# (h)
+muhat_0.1_boot = rep(0,B)
+for(b in 1:B){
+  index = sample(1:n,n,replace=TRUE)
+  bootsample = Boston[index,]
+  muhat_0.1_boot[b] = quantile(bootsample$medv, 0.1)
+}
+se_muhat_0.1 = sd(muhat_0.1_boot)
+se_muhat_0.1
+```
+
+h. The standard error of approximately 0.5 suggests moderate variability in the estimate for the 10th percentile, indicating some level of uncertainty about its precise value.
+
+## Problem 2
+
+```{r}
+alpha.fn = function(data, index) {
+  X = data$X[index]
+  Y = data$Y[index]
+  (var(Y) - cov(X, Y)) / (var(X) + var(Y) - 2 * cov(X, Y))}
+
+## run this on the Portfolio data
+library(ISLR2)
+alpha.fn(Portfolio,1:100)
+
+B = 100
+n = nrow(Portfolio)
+alpha_boot = rep(0,B)
+for (b in 1:B) {
+  index = sample(1:n,n,replace = TRUE)
+  alpha_boot[b] = alpha.fn(Portfolio,index)
+}
+sd(alpha_boot)
+```
+
+
+## Problem 3
+
+```{r}
+spam = read.csv("./spambase/spambase.data",header=FALSE)
+spam$V58 = as.factor(spam$V58)
+
+# (a)
+spam_count = sum(spam$V58 == 1)
+prop_spam = spam_count / nrow(spam)
+cat("Proportion of spam emails:", prop_spam, "\n")
+cat("Proportion of non-spam emails:", 1-prop_spam, "\n")
+
+```
+
+```{r}
+# (b)
+train = sample(1:nrow(spam),nrow(spam)/2, replace=FALSE)
+test = (-train)
+
+train_data = spam[train,]
+test_data = spam[test,]
+
+prop_train_spam = sum(train_data$V58 == 1) / nrow(train_data)
+cat("Proportion of spam emails in training set:", prop_train_spam, "\n")
+cat("Proportion of non-spam emails in training set:", 1-prop_train_spam, "\n")
+
+# Check proportions in testing set
+prop_test_spam = sum(test_data$V58 == 1) / nrow(test_data)
+cat("Proportion of spam emails in testing set:", prop_test_spam, "\n")
+cat("Proportion of non-spam emails in testing set:",1- prop_test_spam, "\n")
+```
+
+```{r}
+# (c)
+glm.fit = glm(V58~., data=spam,subset=train,family='binomial')
+glm.prob = predict(glm.fit,spam[test,],type='response') 
+head(glm.prob, 10)
+```
+
+```{r}
+# (d)
+glm.pred = rep(0,length(test))
+glm.pred[glm.prob >0.5] = 1
+conf_matrix = table(glm.pred,test_data$V58) 
+conf_matrix
+
+# misclassification rate
+1-mean(glm.pred == test_data$V58)
+sum(is.na(glm.pred)==TRUE)
+```
+
+There might be a perfect separation as there is a NA value in the predicted probabilities.
+
+```{r}
+# misclassification rate after removing the NA value
+mean(glm.pred != test_data$V58, na.rm = TRUE)
+```
+
+```{r}
+# False negative
+false_negative_rate = conf_matrix[1, 2] / sum(test_data$V58 == 1)
+cat("False Negative rate:",false_negative_rate,"\n")
+
+# False positive
+false_positive_rate = conf_matrix[2, 1] / sum(test_data$V58 == 0)
+cat("False Positive rate:",false_positive_rate,"\n")
+```
+
+e. In this case, reporting a meaningful email as spam, false positive, is more critical. We can change the threshold for classifying emails as spam by increasing the predicted probability. This would classify an email as spam only if the model is very confident about it.
+
+```{r}
+glm.pred.adjusted = rep(0,length(test))
+glm.pred.adjusted[glm.prob >0.7] = 1
+table(glm.pred.adjusted,test_data$V58) 
+```
+
